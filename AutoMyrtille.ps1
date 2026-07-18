@@ -285,32 +285,30 @@ function Start-MyrtilleServices {
 function Show-Summary {
     $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Bluetooth|VMware|Virtual|Hyper-V|vEthernet' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1).IPAddress
     $p = if ($script:UseSsl) { 'https' } else { 'http' }
-    $hp = $script:HttpPort
-    $sp = if ($script:UseSsl) { ":$($script:HttpsPort)" } else { '' }
-    $hpSuffix = if ($hp -ne 80 -and $hp -ne 443) { ":$hp" } else { '' }
+    $portSuffix = if ($script:UseSsl) { ":$($script:HttpsPort)" } else { ":$($script:HttpPort)" }
     Write-Host ''
     Write-Host '=============================================' -ForegroundColor Green
     Write-Host " Myrtille $MyrtilleVersion 部署成功" -ForegroundColor Green
     Write-Host '=============================================' -ForegroundColor Green
     Write-Host ''
     Write-Host ' Web 访问地址:' -ForegroundColor Yellow
-    Write-Host " 本机: ${p}://127.0.0.1${hpSuffix}${sp}/myrtille" -ForegroundColor White
-    if ($ip) { Write-Host " 局域网: ${p}://$ip${hpSuffix}${sp}/myrtille" -ForegroundColor White }
-    Write-Host " 主机名: ${p}://$env:COMPUTERNAME${hpSuffix}${sp}/myrtille" -ForegroundColor White
-    if ($script:CertDomain) { Write-Host " 域名: ${p}://$($script:CertDomain)${sp}/myrtille" -ForegroundColor White }
+    Write-Host " 本机: ${p}://127.0.0.1${portSuffix}/$AppName" -ForegroundColor White
+    if ($ip) { Write-Host " 局域网: ${p}://$ip${portSuffix}/$AppName" -ForegroundColor White }
+    Write-Host " 主机名: ${p}://$env:COMPUTERNAME${portSuffix}/$AppName" -ForegroundColor White
+    if ($script:CertDomain) { Write-Host " 域名: ${p}://$($script:CertDomain)${portSuffix}/$AppName" -ForegroundColor White }
     Write-Host ''
     Write-Host " 安装路径: $InstallDir" -ForegroundColor Gray
     Write-Host ' Windows 服务: Myrtille.Services (自动启动)' -ForegroundColor Gray
-    Write-Host " HTTP 端口: $hp" -ForegroundColor Gray
+    Write-Host " HTTP 端口: $($script:HttpPort)" -ForegroundColor Gray
     if ($script:UseSsl) { Write-Host " HTTPS 端口: $($script:HttpsPort)" -ForegroundColor Gray }
     Write-Host ''
     Write-Host ' URL 访问方式（三级跳过）:' -ForegroundColor Cyan
     Write-Host ' ① 手动登录（需填服务器/账号/密码）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${hpSuffix}${sp}/myrtille" -ForegroundColor White
+    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName" -ForegroundColor White
     Write-Host ' ② 直连（跳过服务器地址，仍需在页面填账号密码）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${hpSuffix}${sp}/myrtille/?server=TARGET_IP" -ForegroundColor White
+    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=TARGET_IP" -ForegroundColor White
     Write-Host ' ③ 全自动直连（跳过全部输入，直达桌面）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${hpSuffix}${sp}/myrtille/?server=TARGET_IP&user=USERNAME&pass=PASSWORD" -ForegroundColor White
+    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=TARGET_IP&user=USERNAME&pass=PASSWORD" -ForegroundColor White
     Write-Host ''
     Write-Host ' 使用前请确保目标机已启用远程桌面' -ForegroundColor Yellow
     Write-Host '=============================================' -ForegroundColor Green
