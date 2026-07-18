@@ -350,17 +350,56 @@ function Uninstall-Myrtille {
     Write-Ok '===== Myrtille 已完全卸载 ====='
 }
 
+function Test-Installed {
+    if (-not (Test-Path $InstallDir)) { return $false }
+    if (-not (Test-Path "$InstallDir\install.json")) { return $false }
+    return $true
+}
+
+function Show-ConnectionInfo {
+    $cfg = Get-Content "$InstallDir\install.json" -Raw | ConvertFrom-Json
+    $p = if ($cfg.UseSsl) { 'https' } else { 'http' }
+    $portSuffix = if ($cfg.UseSsl) { ":$($cfg.HttpsPort)" } else { ":$($cfg.HttpPort)" }
+    $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Bluetooth|VMware|Virtual|Hyper-V|vEthernet' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1).IPAddress
+    Write-Host ''
+    Write-Host '=============================================' -ForegroundColor Green
+    Write-Host " Myrtille $MyrtilleVersion - 连接信息" -ForegroundColor Green
+    Write-Host " 安装时间: $($cfg.InstallTime)" -ForegroundColor Gray
+    Write-Host '=============================================' -ForegroundColor Green
+    Write-Host ''
+    Write-Host ' 访问地址:' -ForegroundColor Yellow
+    Write-Host " 本机: ${p}://127.0.0.1${portSuffix}/$AppName" -ForegroundColor White
+    if ($ip) { Write-Host " 局域网: ${p}://$ip${portSuffix}/$AppName" -ForegroundColor White }
+    Write-Host " 主机名: ${p}://$env:COMPUTERNAME${portSuffix}/$AppName" -ForegroundColor White
+    if ($cfg.CertDomain) { Write-Host " 域名: ${p}://$($cfg.CertDomain)${portSuffix}/$AppName" -ForegroundColor White }
+    Write-Host ''
+    Write-Host ' 全自动直连 (跳过多层登录):' -ForegroundColor Cyan
+    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=TARGET_IP&user=USERNAME&pass=PASSWORD" -ForegroundColor Gray
+    Write-Host ''
+    Write-Host " HTTP 端口: $($cfg.HttpPort)" -ForegroundColor Gray
+    if ($cfg.UseSsl) { Write-Host " HTTPS 端口: $($cfg.HttpsPort)" -ForegroundColor Gray }
+    Write-Host '=============================================' -ForegroundColor Green
+}
+
 function Show-MainMenu {
     Clear-Host
+    $installed = Test-Installed
     Write-Host '=============================================' -ForegroundColor Cyan
     Write-Host '     Myrtille 部署工具 v2.9.2' -ForegroundColor Cyan
     Write-Host '=============================================' -ForegroundColor Cyan
+    if ($installed) {
+        Write-Host ''
+        Write-Host ' [已安装] 输入 [i] 查看连接信息' -ForegroundColor Green
+    }
     Write-Host ''
     Write-Host '  [1] 安装 Myrtille' -ForegroundColor Yellow
-    Write-Host '  [2] 卸载 Myrtille' -ForegroundColor Yellow
+    if ($installed) { Write-Host '  [2] 卸载 Myrtille' -ForegroundColor Yellow }
+    else { Write-Host '  [2] 卸载 Myrtille (未安装)' -ForegroundColor Gray }
     Write-Host '  [Q] 退出' -ForegroundColor Yellow
     Write-Host ''
-    $choice = Read-Choice '请选择 [1/2/Q]' '1'
+    $prompt = if ($installed) { '请选择 [1/2/I/Q]' } else { '请选择 [1/2/Q]' }
+    $default = if ($installed) { 'i' } else { '1' }
+    $choice = Read-Choice $prompt $default
     return $choice
 }
 
@@ -384,7 +423,7 @@ function Show-InstallMenu {
         $script:HttpsPort = if ($input2 -match '^\d+$') { [int]$input2 } else { $HttpsPort }
     }
     Write-Host ''
-    $script:NoReboot = -not (Read-YesNo 'IIS 功能启用后需要重启，是否自动重启' $true)
+    $script:NoReboot = -not (Read-YesNo 'IIS 功能启用后需要重启，是否自动重启' $false)
     Write-Host ''
     Write-Info '配置完成，开始安装...'
     Start-Sleep 1
@@ -416,6 +455,8 @@ function Install-Myrtille {
     Write-Info '[9/9] 启动服务...'; Start-MyrtilleServices
     Write-Info 'RDP 配置...'; Import-RdpSettings
     Show-Summary
+    $config = @{HttpPort=$script:HttpPort; HttpsPort=$script:HttpsPort; UseSsl=$script:UseSsl; CertDomain=$script:CertDomain; InstallTime=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')}
+    $config | ConvertTo-Json | Out-File "$InstallDir\install.json" -Encoding UTF8
     Write-Info "总耗时: $(((Get-Date) - $startTime).Minutes) 分 $(((Get-Date) - $startTime).Seconds) 秒"
 }
 
@@ -435,6 +476,8 @@ function Main {
         switch ($choice) {
             '1' { Show-InstallMenu; Install-Myrtille; Write-Host ''; Write-Info '按 Enter 返回菜单...'; $null = Read-Host }
             '2' { if (Read-YesNo '确定要卸载 Myrtille 吗' $false) { Uninstall-Myrtille }; Write-Host ''; Write-Info '按 Enter 返回菜单...'; $null = Read-Host }
+            'i' { Show-ConnectionInfo; Write-Host ''; Write-Info '按 Enter 返回菜单...'; $null = Read-Host }
+            'I' { Show-ConnectionInfo; Write-Host ''; Write-Info '按 Enter 返回菜单...'; $null = Read-Host }
             'q' { return }; 'Q' { return }
             default { Write-Warn '无效选择' }
         }
