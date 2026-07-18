@@ -306,10 +306,15 @@ function Show-Summary {
     Write-Host ' URL 访问方式（三级跳过）:' -ForegroundColor Cyan
     Write-Host ' ① 手动登录（需填服务器/账号/密码）' -ForegroundColor Gray
     Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName" -ForegroundColor White
-    Write-Host " ② 直连（跳过服务器地址，仍需在页面填账号密码）" -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer" -ForegroundColor White
-    Write-Host ' ③ 全自动直连（跳过全部输入，直达桌面）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&pass=PASSWORD" -ForegroundColor White
+    Write-Host " ② 直连（指定服务器，仍需填账号密码）" -ForegroundColor Gray
+    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&connect=Connect%21" -ForegroundColor White
+    Write-Host ' ③ 全自动直连（直达桌面）' -ForegroundColor Gray
+    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&password=PASSWORD&width=1920&height=1080&connect=Connect%21" -ForegroundColor White
+    Write-Host ''
+    Write-Host ' 提示:' -ForegroundColor Yellow
+    Write-Host ' 如果目标 RDP 端口不是 3389，在 server= 后加端口，如 server=192.168.1.100:3390' -ForegroundColor Gray
+    Write-Host ' 域名 (domain) 仅企业 AD 环境需要，家庭电脑可留空' -ForegroundColor Gray
+    Write-Host ' 参数值需要 URL 编码（中文/特殊字符），可用在线工具编码' -ForegroundColor Gray
     Write-Host ''
     Write-Host ' 使用前请确保目标机已启用远程桌面' -ForegroundColor Yellow
     Write-Host '=============================================' -ForegroundColor Green
@@ -375,10 +380,13 @@ function Show-ConnectionInfo {
     Write-Host " 主机名: ${p}://$env:COMPUTERNAME${portSuffix}/$AppName" -ForegroundColor White
     if ($cfg.CertDomain) { Write-Host " 域名: ${p}://$($cfg.CertDomain)${portSuffix}/$AppName" -ForegroundColor White }
     Write-Host ''
-    Write-Host ' ② 直连（指定服务器地址）:' -ForegroundColor Cyan
-    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer" -ForegroundColor White
+    Write-Host ' ② 直连（指定服务器）:' -ForegroundColor Cyan
+    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&connect=Connect%21" -ForegroundColor White
     Write-Host ' ③ 全自动直连（直达桌面）:' -ForegroundColor Cyan
-    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&pass=PASSWORD" -ForegroundColor White
+    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&password=PASSWORD&width=1920&height=1080&connect=Connect%21" -ForegroundColor White
+    Write-Host ''
+    Write-Host ' 非 3389 RDP 端口: server=IP:端口' -ForegroundColor Gray
+    Write-Host ' 域名 (domain) 仅企业 AD 需要，家庭留空' -ForegroundColor Gray
     Write-Host ''
     Write-Host " HTTP 端口: $($cfg.HttpPort)" -ForegroundColor Gray
     if ($cfg.UseSsl) { Write-Host " HTTPS 端口: $($cfg.HttpsPort)" -ForegroundColor Gray }
