@@ -241,10 +241,19 @@ function Configure-SelfSignedCert {
     $existing = Get-ChildItem 'Cert:\LocalMachine\My' | Where-Object { $_.DnsNameList -contains $hostname }
     if ($existing) { $cert = $existing | Select-Object -First 1; Write-Info '使用已有证书' }
     else { $cert = New-SelfSignedCertificate -CertStoreLocation 'Cert:\LocalMachine\My' -DnsName $hostname -FriendlyName 'Myrtille self-signed certificate' }
-    $httpsBinding = Get-WebBinding -Name 'Default Web Site' -Protocol 'https' | Where-Object { $_.endPoint.Port -eq $script:HttpsPort }
-    if (-not $httpsBinding) { New-WebBinding -Name 'Default Web Site' -IPAddress '*' -Port $script:HttpsPort -Protocol 'https' }
-    $httpsBinding = Get-WebBinding -Name 'Default Web Site' -Protocol 'https' | Where-Object { $_.endPoint.Port -eq $script:HttpsPort }
-    $httpsBinding.AddSslCertificate($cert.GetCertHashString(), 'my')
+    if (-not $cert) { Write-Fail '证书创建失败'; exit 1 }
+
+    $port = $script:HttpsPort
+    $httpsBinding = Get-WebBinding -Name 'Default Web Site' -Protocol 'https' | Where-Object { ($_.bindingInformation -split ':')[1] -eq "$port" }
+    if (-not $httpsBinding) {
+        New-WebBinding -Name 'Default Web Site' -IPAddress '*' -Port $port -Protocol 'https'
+        Start-Sleep 2
+        $httpsBinding = Get-WebBinding -Name 'Default Web Site' -Protocol 'https' | Where-Object { ($_.bindingInformation -split ':')[1] -eq "$port" }
+    }
+    if (-not $httpsBinding) { Write-Fail "HTTPS 端口 $port 绑定创建失败"; exit 1 }
+
+    $certHash = $cert.GetCertHashString()
+    $httpsBinding.AddSslCertificate($certHash, 'my')
     Write-Ok 'HTTPS 自签名证书已配置'
 }
 
