@@ -286,6 +286,7 @@ function Show-Summary {
     $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Bluetooth|VMware|Virtual|Hyper-V|vEthernet' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1).IPAddress
     $p = if ($script:UseSsl) { 'https' } else { 'http' }
     $portSuffix = if ($script:UseSsl) { ":$($script:HttpsPort)" } else { ":$($script:HttpPort)" }
+    $exampleServer = if ($script:CertDomain) { $script:CertDomain } elseif ($ip) { $ip } else { '127.0.0.1' }
     Write-Host ''
     Write-Host '=============================================' -ForegroundColor Green
     Write-Host " Myrtille $MyrtilleVersion 部署成功" -ForegroundColor Green
@@ -305,10 +306,10 @@ function Show-Summary {
     Write-Host ' URL 访问方式（三级跳过）:' -ForegroundColor Cyan
     Write-Host ' ① 手动登录（需填服务器/账号/密码）' -ForegroundColor Gray
     Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName" -ForegroundColor White
-    Write-Host ' ② 直连（跳过服务器地址，仍需在页面填账号密码）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=TARGET_IP" -ForegroundColor White
+    Write-Host " ② 直连（跳过服务器地址，仍需在页面填账号密码）" -ForegroundColor Gray
+    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer" -ForegroundColor White
     Write-Host ' ③ 全自动直连（跳过全部输入，直达桌面）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=TARGET_IP&user=USERNAME&pass=PASSWORD" -ForegroundColor White
+    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&pass=PASSWORD" -ForegroundColor White
     Write-Host ''
     Write-Host ' 使用前请确保目标机已启用远程桌面' -ForegroundColor Yellow
     Write-Host '=============================================' -ForegroundColor Green
@@ -361,6 +362,7 @@ function Show-ConnectionInfo {
     $p = if ($cfg.UseSsl) { 'https' } else { 'http' }
     $portSuffix = if ($cfg.UseSsl) { ":$($cfg.HttpsPort)" } else { ":$($cfg.HttpPort)" }
     $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Bluetooth|VMware|Virtual|Hyper-V|vEthernet' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1).IPAddress
+    $exampleServer = if ($cfg.CertDomain) { $cfg.CertDomain } elseif ($ip) { $ip } else { '127.0.0.1' }
     Write-Host ''
     Write-Host '=============================================' -ForegroundColor Green
     Write-Host " Myrtille $MyrtilleVersion - 连接信息" -ForegroundColor Green
@@ -373,8 +375,10 @@ function Show-ConnectionInfo {
     Write-Host " 主机名: ${p}://$env:COMPUTERNAME${portSuffix}/$AppName" -ForegroundColor White
     if ($cfg.CertDomain) { Write-Host " 域名: ${p}://$($cfg.CertDomain)${portSuffix}/$AppName" -ForegroundColor White }
     Write-Host ''
-    Write-Host ' 全自动直连 (跳过多层登录):' -ForegroundColor Cyan
-    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=TARGET_IP&user=USERNAME&pass=PASSWORD" -ForegroundColor Gray
+    Write-Host ' ② 直连（指定服务器地址）:' -ForegroundColor Cyan
+    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer" -ForegroundColor White
+    Write-Host ' ③ 全自动直连（直达桌面）:' -ForegroundColor Cyan
+    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&pass=PASSWORD" -ForegroundColor White
     Write-Host ''
     Write-Host " HTTP 端口: $($cfg.HttpPort)" -ForegroundColor Gray
     if ($cfg.UseSsl) { Write-Host " HTTPS 端口: $($cfg.HttpsPort)" -ForegroundColor Gray }
@@ -423,8 +427,7 @@ function Show-InstallMenu {
         $script:HttpsPort = if ($input2 -match '^\d+$') { [int]$input2 } else { $HttpsPort }
     }
     Write-Host ''
-    $script:NoReboot = -not (Read-YesNo 'IIS 功能启用后需要重启，是否自动重启' $false)
-    Write-Host ''
+    $script:NoReboot = $true
     Write-Info '配置完成，开始安装...'
     Start-Sleep 1
 }
