@@ -3,7 +3,8 @@
     [switch]$Uninstall,
     [switch]$NoReboot,
     [switch]$SslCert,
-    [string]$Domain
+    [string]$Domain,
+    [int]$RdpPort = 3389
 )
 
 $ErrorActionPreference = 'Stop'
@@ -21,6 +22,7 @@ $StateFile = "$env:SystemDrive\AutoMyrtille_InstallState.json"
 $HttpPort = 11111
 $HttpsPort = 12345
 $ProxyPrefix = 'https://ghproxy.net/'
+$RdpPort = 3389
 
 function Write-Info  { Write-Host '[*] ' ($args[0]) -ForegroundColor Cyan }
 function Write-Ok    { Write-Host '[+] ' ($args[0]) -ForegroundColor Green }
@@ -115,7 +117,7 @@ function Enable-WindowsFeatures {
             Write-Warn '请手动重启后重新运行安装'
             exit 0
         }
-        $state = @{Step=5; UseSsl=$script:UseSsl; CertDomain=$script:CertDomain; HttpPort=$script:HttpPort; HttpsPort=$script:HttpsPort}
+        $state = @{Step=5; UseSsl=$script:UseSsl; CertDomain=$script:CertDomain; HttpPort=$script:HttpPort; HttpsPort=$script:HttpsPort; RdpPort=$script:RdpPort}
         $state | ConvertTo-Json | Out-File $StateFile -Encoding UTF8
         Write-Info '重启后将自动继续安装...'
         Write-Info '10 秒后重启...'
@@ -286,7 +288,9 @@ function Show-Summary {
     $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Bluetooth|VMware|Virtual|Hyper-V|vEthernet' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1).IPAddress
     $p = if ($script:UseSsl) { 'https' } else { 'http' }
     $portSuffix = if ($script:UseSsl) { ":$($script:HttpsPort)" } else { ":$($script:HttpPort)" }
-    $exampleServer = if ($script:CertDomain) { $script:CertDomain } elseif ($ip) { $ip } else { '127.0.0.1' }
+    $baseAddr = if ($script:CertDomain) { $script:CertDomain } elseif ($ip) { $ip } else { '127.0.0.1' }
+    $rdpPortSuffix = if ($script:RdpPort -ne 3389) { ":$($script:RdpPort)" } else { '' }
+    $exampleServer = "$baseAddr$rdpPortSuffix"
     Write-Host ''
     Write-Host '=============================================' -ForegroundColor Green
     Write-Host " Myrtille $MyrtilleVersion 部署成功" -ForegroundColor Green
@@ -305,14 +309,14 @@ function Show-Summary {
     Write-Host ''
     Write-Host ' URL 访问方式（三级跳过）:' -ForegroundColor Cyan
     Write-Host ' ① 手动登录（需填服务器/账号/密码）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName" -ForegroundColor White
+    Write-Host "    ${p}://${baseAddr}${portSuffix}/$AppName" -ForegroundColor White
     Write-Host " ② 直连（指定服务器，仍需填账号密码）" -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&connect=Connect%21" -ForegroundColor White
-    Write-Host ' ③ 全自动直连（直达桌面）' -ForegroundColor Gray
-    Write-Host "    ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&password=PASSWORD&width=1920&height=1080&connect=Connect%21" -ForegroundColor White
+    Write-Host "    ${p}://${baseAddr}${portSuffix}/$AppName/?server=$exampleServer&connect=Connect%21" -ForegroundColor White
+    Write-Host ' ③ 全自动直连（直达桌面，自动适应分辨率）' -ForegroundColor Gray
+    Write-Host "    ${p}://${baseAddr}${portSuffix}/$AppName/?__EVENTTARGET=&__EVENTARGUMENT=&server=$exampleServer&user=USERNAME&password=PASSWORD&connect=Connect%21" -ForegroundColor White
     Write-Host ''
     Write-Host ' 提示:' -ForegroundColor Yellow
-    Write-Host ' 如果目标 RDP 端口不是 3389，在 server= 后加端口，如 server=192.168.1.100:3390' -ForegroundColor Gray
+    Write-Host ' 非 3389 RDP 端口已在 server= 中自动包含' -ForegroundColor Gray
     Write-Host ' 域名 (domain) 仅企业 AD 环境需要，家庭电脑可留空' -ForegroundColor Gray
     Write-Host ' 参数值需要 URL 编码（中文/特殊字符），可用在线工具编码' -ForegroundColor Gray
     Write-Host ''
@@ -367,7 +371,9 @@ function Show-ConnectionInfo {
     $p = if ($cfg.UseSsl) { 'https' } else { 'http' }
     $portSuffix = if ($cfg.UseSsl) { ":$($cfg.HttpsPort)" } else { ":$($cfg.HttpPort)" }
     $ip = (Get-NetIPAddress -AddressFamily IPv4 | Where-Object { $_.InterfaceAlias -notmatch 'Loopback|Bluetooth|VMware|Virtual|Hyper-V|vEthernet' -and $_.IPAddress -ne '127.0.0.1' } | Select-Object -First 1).IPAddress
-    $exampleServer = if ($cfg.CertDomain) { $cfg.CertDomain } elseif ($ip) { $ip } else { '127.0.0.1' }
+    $baseAddr = if ($cfg.CertDomain) { $cfg.CertDomain } elseif ($ip) { $ip } else { '127.0.0.1' }
+    $rdpPortSuffix = if ($cfg.RdpPort -ne 3389) { ":$($cfg.RdpPort)" } else { '' }
+    $exampleServer = "$baseAddr$rdpPortSuffix"
     Write-Host ''
     Write-Host '=============================================' -ForegroundColor Green
     Write-Host " Myrtille $MyrtilleVersion - 连接信息" -ForegroundColor Green
@@ -381,11 +387,11 @@ function Show-ConnectionInfo {
     if ($cfg.CertDomain) { Write-Host " 域名: ${p}://$($cfg.CertDomain)${portSuffix}/$AppName" -ForegroundColor White }
     Write-Host ''
     Write-Host ' ② 直连（指定服务器）:' -ForegroundColor Cyan
-    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&connect=Connect%21" -ForegroundColor White
-    Write-Host ' ③ 全自动直连（直达桌面）:' -ForegroundColor Cyan
-    Write-Host " ${p}://127.0.0.1${portSuffix}/$AppName/?server=$exampleServer&user=USERNAME&password=PASSWORD&width=1920&height=1080&connect=Connect%21" -ForegroundColor White
+    Write-Host " ${p}://${baseAddr}${portSuffix}/$AppName/?server=$exampleServer&connect=Connect%21" -ForegroundColor White
+    Write-Host ' ③ 全自动直连（直达桌面，自动适应分辨率）:' -ForegroundColor Cyan
+    Write-Host " ${p}://${baseAddr}${portSuffix}/$AppName/?__EVENTTARGET=&__EVENTARGUMENT=&server=$exampleServer&user=USERNAME&password=PASSWORD&connect=Connect%21" -ForegroundColor White
     Write-Host ''
-    Write-Host ' 非 3389 RDP 端口: server=IP:端口' -ForegroundColor Gray
+    Write-Host ' 非 3389 RDP 端口已在 server= 中自动包含' -ForegroundColor Gray
     Write-Host ' 域名 (domain) 仅企业 AD 需要，家庭留空' -ForegroundColor Gray
     Write-Host ''
     Write-Host " HTTP 端口: $($cfg.HttpPort)" -ForegroundColor Gray
@@ -434,6 +440,8 @@ function Show-InstallMenu {
         $input2 = Read-Choice "  HTTPS 端口 [$HttpsPort]" $HttpsPort
         $script:HttpsPort = if ($input2 -match '^\d+$') { [int]$input2 } else { $HttpsPort }
     }
+    $input3 = Read-Choice "  目标 RDP 端口 [$RdpPort]" $RdpPort
+    $script:RdpPort = if ($input3 -match '^\d+$') { [int]$input3 } else { $RdpPort }
     Write-Host ''
     $script:NoReboot = $true
     Write-Info '配置完成，开始安装...'
@@ -444,7 +452,7 @@ function Install-Myrtille {
     $startTime = Get-Date
     if (Test-Path $StateFile) {
         Write-Info '检测到重启恢复标记，跳过前置检查...'
-        try { $state = Get-Content $StateFile -Raw | ConvertFrom-Json; $script:UseSsl = $state.UseSsl; $script:CertDomain = $state.CertDomain; $script:HttpPort = $state.HttpPort; $script:HttpsPort = $state.HttpsPort } catch { }
+        try { $state = Get-Content $StateFile -Raw | ConvertFrom-Json; $script:UseSsl = $state.UseSsl; $script:CertDomain = $state.CertDomain; $script:HttpPort = $state.HttpPort; $script:HttpsPort = $state.HttpsPort; $script:RdpPort = $state.RdpPort } catch { }
         Remove-Item -Force $StateFile -ErrorAction SilentlyContinue
     } else {
         if (Test-Path $TempDir) { Remove-Item -Recurse -Force $TempDir -ErrorAction SilentlyContinue }
@@ -466,7 +474,7 @@ function Install-Myrtille {
     Write-Info '[9/9] 启动服务...'; Start-MyrtilleServices
     Write-Info 'RDP 配置...'; Import-RdpSettings
     Show-Summary
-    $config = @{HttpPort=$script:HttpPort; HttpsPort=$script:HttpsPort; UseSsl=$script:UseSsl; CertDomain=$script:CertDomain; InstallTime=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')}
+    $config = @{HttpPort=$script:HttpPort; HttpsPort=$script:HttpsPort; UseSsl=$script:UseSsl; CertDomain=$script:CertDomain; RdpPort=$script:RdpPort; InstallTime=(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')}
     $config | ConvertTo-Json | Out-File "$InstallDir\install.json" -Encoding UTF8
     Write-Info "总耗时: $(((Get-Date) - $startTime).Minutes) 分 $(((Get-Date) - $startTime).Seconds) 秒"
 }
@@ -479,6 +487,7 @@ function Main {
         $script:CertDomain = if ($Domain) { $Domain } else { $null }
         $script:HttpPort = $HttpPort
         $script:HttpsPort = $HttpsPort
+        $script:RdpPort = $RdpPort
         Install-Myrtille
         return
     }
